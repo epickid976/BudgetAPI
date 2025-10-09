@@ -5,10 +5,11 @@ import { sql } from "drizzle-orm";
 
 // Users
 export const users = sqliteTable("users", {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    email: text("email").notNull().unique(),
-    passwordHash: text("password_hash").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp"}).notNull().default(sql`CURRENT_TIMESTAMP`)
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  emailVerified: integer("email_verified", { mode: "boolean" }).default(false), // NEW
+  createdAt: integer("created_at", { mode: "timestamp"}).notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
 // Accounts
@@ -77,3 +78,11 @@ export const usersRelations = relations(users, ({ many }) => ({
   budgets: many(budgetMonths),
 }));
 
+export const passwordResets = sqliteTable("password_resets", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  used: integer("used", { mode: "boolean" }).default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
+});

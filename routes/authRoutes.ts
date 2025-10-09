@@ -1,0 +1,207 @@
+import { Router } from "express";
+import { z } from "zod";
+import * as authService from "../api/src/modules/auth/service.js";
+import { requireAuth } from "../api/src/middlewares/auth.js";
+import { db } from "../api/src/config/db.js";
+import { users, passwordResets } from "../api/src/db/schema.js";
+import { eq } from "drizzle-orm";
+import * as bcrypt from "bcryptjs";
+import * as crypto from "crypto";
+import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import * as schema from "../api/src/db/schema.js";
+
+const sqliteDb = db as unknown as BetterSQLite3Database<typeof schema>;
+
+export const authRouter = Router();
+
+// Validation schemas
+const registerSchema = z.object({
+    email: z.string().email(),
+    password: z.string().min(8),
+});
+
+const loginSchema = z.object({
+    email: z.string().email(),
+    password: z.string().min(1),
+});
+
+const refreshSchema = z.object({
+    refreshToken: z.string(),
+});
+
+const forgotPasswordSchema = z.object({
+    email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+    token: z.string(),
+    newPassword: z.string().min(8),
+});
+
+const changePasswordSchema = z.object({
+    currentPassword: z.string(),
+    newPassword: z.string().min(8),
+});
+
+// POST /auth/register
+authRouter.post("/register", async (req, res) => {
+    try {
+        const data = registerSchema.parse(req.body);
+        const tokens = await authService.register(data.email, data.password);
+        res.status(201).json(tokens);
+    } catch (err: any) {
+        if (err.message === "EMAIL_IN_USE") {
+            return res.status(409).json({ error: "Email already in use" });
+        }
+        res.status(400).json({ error: err.message || "Registration failed" });
+    }
+});
+
+// POST /auth/login
+authRouter.post("/login", async (req, res) => {
+  try {
+    const data = loginSchema.parse(req.body);
+    const tokens = await authService.login(data.email, data.password);
+    res.json(tokens);
+  } catch (err: any) {
+    if (err.message === "INVALID_CREDENTIALS") {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+    res.status(400).json({ error: err.message || "Login failed" });
+  }
+});
+
+// POST /auth/refresh
+authRouter.post("/refresh", async (req, res) => {
+  try {
+    const data = refreshSchema.parse(req.body);
+    const tokens = await authService.refreshTokens(data.refreshToken);
+    res.json(tokens);
+  } catch (err: any) {
+    res.status(401).json({ error: "Invalid or expired refresh token" });
+  }
+});
+
+// GET /auth/me
+authRouter.get("/me", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).userId;
+    const [user] = await sqliteDb.select({
+      id: users.id,
+      email: users.email,
+      createdAt: users.createdAt,
+    }).from(users).where(eq(users.id, userId));
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to get user" });
+  }
+});
+
+// POST /auth/logout (client-side, this just returns success)
+authRouter.post("/logout", requireAuth, async (req, res) => {
+  // With JWT, logout is handled client-side by deleting tokens
+  // This endpoint exists for consistency/future token blacklisting
+  res.json({ message: "Logged out successfully" });
+});
+
+// POST /auth/forgot-password
+authRouter.post("/forgot-password", async (req, res) => {
+  try {
+    const data = forgotPasswordSchema.parse(req.body);
+
+    // Find user
+    const [user] = await sqliteDb.select().from(users).where(eq(users.email, data.email));
+
+    // Always return success (don't reveal if email exists - security)
+    if (!user) {
+      return res.json({ message: "If that email exists, a reset link has been sent" });
+    }
+
+    // Generate reset token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await sqliteDb.insert(passwordResets).values({
+      userId: user.id,
+      token,
+      expiresAt,
+    });
+
+    // TODO: Send email with reset link containing token
+    // Example: https://yourapp.com/reset-password?token=${token}
+    console.log(`Reset token for ${data.email}: ${token}`);
+
+    res.json({ message: "If that email exists, a reset link has been sent" });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to process request" });
+  }
+});
+
+// POST /auth/reset-password
+authRouter.post("/reset-password", async (req, res) => {
+  try {
+    const data = resetPasswordSchema.parse(req.body);
+
+    // Find valid reset token
+    const [reset] = await sqliteDb
+      .select()
+      .from(passwordResets)
+      .where(eq(passwordResets.token, data.token));
+
+    if (!reset || reset.used || reset.expiresAt < new Date()) {
+      return res.status(400).json({ error: "Invalid or expired reset token" });
+    }
+
+    // Update password
+    const passwordHash = await bcrypt.hash(data.newPassword, 12);
+    await sqliteDb
+      .update(users)
+      .set({ passwordHash })
+      .where(eq(users.id, reset.userId));
+
+    // Mark token as used
+    await sqliteDb
+      .update(passwordResets)
+      .set({ used: true })
+      .where(eq(passwordResets.id, reset.id));
+
+    res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to reset password" });
+  }
+});
+
+// POST /auth/change-password
+authRouter.post("/change-password", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).userId;
+    const data = changePasswordSchema.parse(req.body);
+
+    // Get current user
+    const [user] = await sqliteDb.select().from(users).where(eq(users.id, userId));
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Verify current password
+    const isValid = await bcrypt.compare(data.currentPassword, user.passwordHash);
+    if (!isValid) {
+      return res.status(401).json({ error: "Current password is incorrect" });
+    }
+
+    // Update to new password
+    const passwordHash = await bcrypt.hash(data.newPassword, 12);
+    await sqliteDb
+      .update(users)
+      .set({ passwordHash })
+      .where(eq(users.id, userId));
+
+    res.json({ message: "Password changed successfully" });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to change password" });
+  }
+});

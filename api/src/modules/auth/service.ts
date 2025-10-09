@@ -25,6 +25,17 @@ export async function login(email: string, password: string) {
     return issueTokens(u.id);
 }
 
+// Add this function to auth/service.ts
+export async function refreshTokens(refreshToken: string) {
+  try {
+    const payload = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { sub: string; typ: string };
+    if (payload.typ !== "refresh") throw new Error("INVALID_TOKEN");
+    return issueTokens(payload.sub);
+  } catch {
+    throw new Error("INVALID_TOKEN");
+  }
+}
+
 function issueTokens(userId: string) {
   const access = jwt.sign({ sub: userId }, env.JWT_ACCESS_SECRET, { expiresIn: "15m" });
   const refresh = jwt.sign({ sub: userId, typ: "refresh" }, env.JWT_REFRESH_SECRET, { expiresIn: "30d" });
