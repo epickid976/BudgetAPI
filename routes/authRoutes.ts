@@ -3,7 +3,7 @@ import { z } from "zod";
 import * as authService from "../api/src/modules/auth/service.js";
 import { requireAuth } from "../api/src/middlewares/auth.js";
 import { db } from "../api/src/config/db.js";
-import { users, passwordResets } from "../api/src/db/schema.js";
+import { users, passwordResets, emailVerificationTokens } from "../api/src/db/schema.js";
 import { eq } from "drizzle-orm";
 import * as bcrypt from "bcryptjs";
 import * as crypto from "crypto";
@@ -43,12 +43,38 @@ const changePasswordSchema = z.object({
     newPassword: z.string().min(8),
 });
 
+const verifyEmailSchema = z.object({
+    token: z.string(),
+});
+
+const resendVerificationSchema = z.object({
+    email: z.string().email(),
+});
+
 // POST /auth/register
 authRouter.post("/register", async (req, res) => {
     try {
         const data = registerSchema.parse(req.body);
-        const tokens = await authService.register(data.email, data.password);
-        res.status(201).json(tokens);
+        const result = await authService.register(data.email, data.password);
+        
+        // TODO: Generate and send email verification token
+        // Uncomment the code below when email service is ready
+        /*
+        const verificationToken = crypto.randomBytes(32).toString("hex");
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        
+        await sqliteDb.insert(emailVerificationTokens).values({
+          userId: result.userId, // Note: auth service would need to return userId
+          token: verificationToken,
+          expiresAt,
+        });
+        
+        // TODO: Send email with verification link
+        // Example: https://yourapp.com/verify-email?token=${verificationToken}
+        console.log(`Verification token for ${data.email}: ${verificationToken}`);
+        */
+        
+        res.status(201).json(result);
     } catch (err: any) {
         if (err.message === "EMAIL_IN_USE") {
             return res.status(409).json({ error: "Email already in use" });
@@ -89,6 +115,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
     const [user] = await sqliteDb.select({
       id: users.id,
       email: users.email,
+      emailVerified: users.emailVerified,
       createdAt: users.createdAt,
     }).from(users).where(eq(users.id, userId));
 
@@ -203,5 +230,76 @@ authRouter.post("/change-password", requireAuth, async (req, res) => {
     res.json({ message: "Password changed successfully" });
   } catch (err) {
     res.status(400).json({ error: "Failed to change password" });
+  }
+});
+
+// POST /auth/verify-email
+authRouter.post("/verify-email", async (req, res) => {
+  try {
+    const data = verifyEmailSchema.parse(req.body);
+
+    // Find valid verification token
+    const [verification] = await sqliteDb
+      .select()
+      .from(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.token, data.token));
+
+    if (!verification || verification.used || verification.expiresAt < new Date()) {
+      return res.status(400).json({ error: "Invalid or expired verification token" });
+    }
+
+    // Mark email as verified
+    await sqliteDb
+      .update(users)
+      .set({ emailVerified: true })
+      .where(eq(users.id, verification.userId));
+
+    // Mark token as used
+    await sqliteDb
+      .update(emailVerificationTokens)
+      .set({ used: true })
+      .where(eq(emailVerificationTokens.id, verification.id));
+
+    res.json({ message: "Email verified successfully" });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to verify email" });
+  }
+});
+
+// POST /auth/resend-verification
+authRouter.post("/resend-verification", async (req, res) => {
+  try {
+    const data = resendVerificationSchema.parse(req.body);
+
+    // Find user
+    const [user] = await sqliteDb.select().from(users).where(eq(users.email, data.email));
+
+    // Always return success (don't reveal if email exists - security)
+    if (!user) {
+      return res.json({ message: "If that email exists and is unverified, a verification link has been sent" });
+    }
+
+    // If already verified, don't send
+    if (user.emailVerified) {
+      return res.json({ message: "If that email exists and is unverified, a verification link has been sent" });
+    }
+
+    // Generate verification token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await sqliteDb.insert(emailVerificationTokens).values({
+      userId: user.id,
+      token,
+      expiresAt,
+    });
+
+    // TODO: Send email with verification link containing token
+    // Example: https://yourapp.com/verify-email?token=${token}
+    console.log(`Verification token for ${data.email}: ${token}`);
+
+    res.json({ message: "If that email exists and is unverified, a verification link has been sent" });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to process request" });
   }
 });

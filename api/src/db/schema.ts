@@ -86,3 +86,13 @@ export const passwordResets = sqliteTable("password_resets", {
   used: integer("used", { mode: "boolean" }).default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
 });
+
+// Email Verification Tokens
+export const emailVerificationTokens = sqliteTable("email_verification_tokens", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  used: integer("used", { mode: "boolean" }).default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
+});
