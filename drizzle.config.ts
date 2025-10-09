@@ -10,11 +10,11 @@ function toDialect(value: string | undefined): Dialect {
 const dialect = toDialect(process.env.DRIZZLE_DIALECT);
 
 export default defineConfig({
-  schema: "./api/src/db/schema.ts",
+  schema: "./db/schema.ts",
   out: "./drizzle",
   dialect,
   dbCredentials:
     dialect === "sqlite"
-      ? { url: "budget.db" }
+      ? { url: "sqlite.db" }
       : { url: process.env.DATABASE_URL! }, // ensure this is set in env for non-sqlite
 });
