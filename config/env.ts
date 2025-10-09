@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { config } from "dotenv";
+
+// Load environment variables from .env file
+config();
 
 const envSchema = z.object({
   DRIZZLE_DIALECT: z.enum(["sqlite","postgresql"]),
