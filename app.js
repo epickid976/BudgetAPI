@@ -11,7 +11,7 @@ const __dirname = dirname(__filename);
 
 import indexRouter from './routes/index.js';
 import usersRouter from './routes/users.js';
-import accountsRouter from './routes/accountRoutes.ts';
+import accountsRouter from './api/src/modules/accounts/accountRoutes.js';
 
 const app = express();
 

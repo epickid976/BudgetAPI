@@ -1,11 +1,11 @@
 // routes/accounts.ts
 import { Router } from "express";
 import { z } from "zod";
-import { db } from "../config/db.js";
-import { accounts } from "../db/schema.js";
+import { db } from "../../config/db.js";
+import { accounts } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import * as schema from "../db/schema.js";
+import * as schema from "../../db/schema.js";
 
 const sqliteDb = db as unknown as BetterSQLite3Database<typeof schema>;
 

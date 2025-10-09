@@ -1,11 +1,11 @@
-import { db } from "../config/db.js";
-import { users } from "../db/schema.js";
+import { db } from "../../config/db.js";
+import { users } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 import * as bcrypt from "bcryptjs";
 import * as jwt from "jsonwebtoken";
-import { env } from "../config/env.js";
+import { env } from "../../config/env.js";
 import {BetterSQLite3Database} from "drizzle-orm/better-sqlite3";
-import * as schema from "../db/schema.js";
+import * as schema from "../../db/schema.js";
 
 const sqliteDb = db as unknown as BetterSQLite3Database<typeof schema>;
 

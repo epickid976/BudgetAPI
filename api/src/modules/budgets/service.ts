@@ -1,8 +1,8 @@
-import { db } from "../config/db.js";
-import { budgetItems, budgetMonths, transactions } from "../db/schema.js";
+import { db } from "../../config/db.js";
+import { budgetItems, budgetMonths, transactions } from "../../db/schema.js";
 import {and, eq, gte, lte, sql} from "drizzle-orm";
 
-import * as schema from "../db/schema.js";
+import * as schema from "../../db/schema.js";
 import {BetterSQLite3Database} from "drizzle-orm/better-sqlite3";
 
 const sqliteDb = db as unknown as BetterSQLite3Database<typeof schema>;
