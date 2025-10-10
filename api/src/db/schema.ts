@@ -1,67 +1,83 @@
-import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
-// For Postgres, import from "drizzle-orm/pg-core" and swap types accordingly.
-import { relations } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+// Database-agnostic imports
+import { sqliteTable, text as sqliteText, integer as sqliteInteger, real as sqliteReal, index as sqliteIndex } from "drizzle-orm/sqlite-core";
+import { pgTable, text as pgText, integer as pgInteger, real as pgReal, index as pgIndex, timestamp as pgTimestamp } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+
+// Determine which table builder to use
+const isSQLite = process.env.DRIZZLE_DIALECT === "sqlite";
+
+// Export the correct table builder
+const table = isSQLite ? sqliteTable : pgTable;
+const text = isSQLite ? sqliteText : pgText;
+const integer = isSQLite ? sqliteInteger : pgInteger;
+const real = isSQLite ? sqliteReal : pgReal;
+const index = isSQLite ? sqliteIndex : pgIndex;
+
+// Helper for timestamps - SQLite uses integer, PostgreSQL uses timestamp
+const timestamp = (name: string) => 
+  isSQLite 
+    ? sqliteInteger(name, { mode: "timestamp" })
+    : pgTimestamp(name, { mode: "date" });
 
 // Users
-export const users = sqliteTable("users", {
+export const users = table("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  emailVerified: integer("email_verified", { mode: "boolean" }).default(false), // NEW
-  createdAt: integer("created_at", { mode: "timestamp"}).notNull().default(sql`CURRENT_TIMESTAMP`)
+  emailVerified: integer("email_verified", { mode: "boolean" }).default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
 // Accounts
-export const accounts = sqliteTable("accounts", {
+export const accounts = table("accounts", {
     id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
     userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade"}),
     name: text("name").notNull(),
     type: text("type").notNull(),      // "cash" | "checking" | "credit"
     currency: text("currency").notNull(), // "USD"
-    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
+    createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 }, (t) => ({
     userIdx: index("accounts_user_idx").on(t.userId)
 }));
 
 // Categories
-export const categories = sqliteTable("categories", {
+export const categories = table("categories", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   kind: text("kind").notNull(),      // "income" | "expense"
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 }, (t) => ({
   userIdx: index("categories_user_idx").on(t.userId)
 }));
 
 // Transactions
-export const transactions = sqliteTable("transactions", {
+export const transactions = table("transactions", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   accountId: text("account_id").notNull().references(() => accounts.id, { onDelete: "restrict" }),
   categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: "set null" }).default(""),
   amountCents: integer("amount_cents").notNull(),
   note: text("note"),
-  occurredAt: integer("occurred_at", { mode: "timestamp" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
+  occurredAt: timestamp("occurred_at").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 }, (t) => ({
   byUserDate: index("tx_user_date_idx").on(t.userId, t.occurredAt),
   byUserCat:  index("tx_user_cat_idx").on(t.userId, t.categoryId)
 }));
 
 // Budgets
-export const budgetMonths = sqliteTable("budget_months", {
+export const budgetMonths = table("budget_months", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   year: integer("year").notNull(),
   month: integer("month").notNull(), // 1..12
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 }, (t) => ({
   uniq: index("budget_month_user_ym").on(t.userId, t.year, t.month)
 }));
 
-export const budgetItems = sqliteTable("budget_items", {
+export const budgetItems = table("budget_items", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   budgetMonthId: text("budget_month_id").notNull().references(() => budgetMonths.id, { onDelete: "cascade" }),
   categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: "restrict" }),
@@ -78,33 +94,33 @@ export const usersRelations = relations(users, ({ many }) => ({
   budgets: many(budgetMonths),
 }));
 
-export const passwordResets = sqliteTable("password_resets", {
+export const passwordResets = table("password_resets", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   token: text("token").notNull().unique(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
   used: integer("used", { mode: "boolean" }).default(false),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
 // Email Verification Tokens
-export const emailVerificationTokens = sqliteTable("email_verification_tokens", {
+export const emailVerificationTokens = table("email_verification_tokens", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   token: text("token").notNull().unique(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
   used: integer("used", { mode: "boolean" }).default(false),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
 // Blacklisted Tokens (for logout/token revocation)
-export const blacklistedTokens = sqliteTable("blacklisted_tokens", {
+export const blacklistedTokens = table("blacklisted_tokens", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   token: text("token").notNull().unique(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   reason: text("reason"), // "logout", "password_change", "admin_revoke", etc.
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 }, (t) => ({
   tokenIdx: index("blacklisted_tokens_token_idx").on(t.token),
   userIdx: index("blacklisted_tokens_user_idx").on(t.userId)
