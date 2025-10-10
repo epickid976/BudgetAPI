@@ -18,6 +18,10 @@ export async function login(email: string, password: string) {
     if (!u) throw new Error("INVALID_CREDENTIALS");
     const ok = await bcrypt.compare(password, u.passwordHash);
     if (!ok) throw new Error("INVALID_CREDENTIALS");
+    
+    // Check if email is verified
+    if (!u.emailVerified) throw new Error("EMAIL_NOT_VERIFIED");
+    
     return issueTokens(u.id);
 }
 

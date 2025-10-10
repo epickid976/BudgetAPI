@@ -124,6 +124,9 @@ authRouter.post("/login", async (req, res) => {
     if (err.message === "INVALID_CREDENTIALS") {
       return res.status(401).json({ error: "Invalid email or password" });
     }
+    if (err.message === "EMAIL_NOT_VERIFIED") {
+      return res.status(403).json({ error: "Please verify your email before logging in. Check your inbox for the verification link." });
+    }
     res.status(400).json({ error: err.message || "Login failed" });
   }
 });
