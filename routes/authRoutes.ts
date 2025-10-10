@@ -63,8 +63,13 @@ authRouter.post("/register", async (req, res) => {
         // Register the user
         const result = await authService.register(data.email, data.password);
         
-        // Get the newly created user ID
-        const [newUser] = await db.select().from(users).where(eq(users.email, data.email));
+        // Get the newly created user
+        const [newUser] = await db.select({
+            id: users.id,
+            email: users.email,
+            emailVerified: users.emailVerified,
+            createdAt: users.createdAt,
+        }).from(users).where(eq(users.email, data.email));
         
         if (newUser) {
             // Generate verification token
@@ -81,7 +86,12 @@ authRouter.post("/register", async (req, res) => {
             await emailService.sendVerificationEmail(data.email, verificationToken);
         }
         
-        res.status(201).json(result);
+        // Return in format frontend expects
+        res.status(201).json({
+            accessToken: result.access,
+            refreshToken: result.refresh,
+            user: newUser
+        });
     } catch (err: any) {
         if (err.message === "EMAIL_IN_USE") {
             return res.status(409).json({ error: "Email already in use" });
@@ -95,7 +105,21 @@ authRouter.post("/login", async (req, res) => {
   try {
     const data = loginSchema.parse(req.body);
     const tokens = await authService.login(data.email, data.password);
-    res.json(tokens);
+    
+    // Get user info
+    const [user] = await db.select({
+      id: users.id,
+      email: users.email,
+      emailVerified: users.emailVerified,
+      createdAt: users.createdAt,
+    }).from(users).where(eq(users.email, data.email));
+    
+    // Return in format frontend expects
+    res.json({
+      accessToken: tokens.access,
+      refreshToken: tokens.refresh,
+      user
+    });
   } catch (err: any) {
     if (err.message === "INVALID_CREDENTIALS") {
       return res.status(401).json({ error: "Invalid email or password" });
@@ -109,7 +133,12 @@ authRouter.post("/refresh", async (req, res) => {
   try {
     const data = refreshSchema.parse(req.body);
     const tokens = await authService.refreshTokens(data.refreshToken);
-    res.json(tokens);
+    
+    // Return in format frontend expects
+    res.json({
+      accessToken: tokens.access,
+      refreshToken: tokens.refresh
+    });
   } catch (err: any) {
     res.status(401).json({ error: "Invalid or expired refresh token" });
   }
