@@ -19,12 +19,48 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// CORS - Allow Vue frontend to communicate with API
+// CORS - Allow frontends to communicate with API
+const allowedOrigins = [
+  // Development - Common frontend ports
+  'http://localhost:3000',      // React/Next.js default
+  'http://localhost:3001',      // Alternative React
+  'http://localhost:3002',      // Alternative frontend
+  'http://localhost:3003',      // Alternative frontend
+  'http://localhost:5173',      // Vite default
+  'http://localhost:5174',      // Alternative Vite
+  'http://localhost:8080',      // Vue CLI default
+  'http://localhost:8081',      // Alternative Vue
+  'http://localhost:4200',      // Angular default
+  
+  // Production - Add your deployed frontend URLs
+  process.env.FRONTEND_URL,     // From environment variable
+  // 'https://your-app.vercel.app',
+  // 'https://your-app.netlify.app',
+  // 'https://yourdomain.com',
+].filter(Boolean); // Remove undefined values
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In development, allow all localhost origins
+      if (process.env.NODE_ENV === 'development' && origin.startsWith('http://localhost:')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600 // Cache preflight requests for 10 minutes
 }));
 
 // view engine setup
