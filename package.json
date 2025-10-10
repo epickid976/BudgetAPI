@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "npm run drizzle:push && tsx ./bin/www",
+    "start": "tsx ./scripts/start-production.ts",
     "dev": "tsx watch ./bin/www",
     "drizzle:push": "drizzle-kit push",
     "drizzle:studio": "drizzle-kit studio",
