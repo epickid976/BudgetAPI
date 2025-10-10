@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import * as emailService from "../api/src/services/email.js";
+import * as tokenBlacklist from "../api/src/services/tokenBlacklist.js";
 
 export const authRouter = Router();
 
@@ -134,11 +135,24 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   }
 });
 
-// POST /auth/logout (client-side, this just returns success)
+// POST /auth/logout
 authRouter.post("/logout", requireAuth, async (req, res) => {
-  // With JWT, logout is handled client-side by deleting tokens
-  // This endpoint exists for consistency/future token blacklisting
-  res.json({ message: "Logged out successfully" });
+  try {
+    const userId = (req as any).userId;
+    const token = (req as any).token;
+
+    // Blacklist the access token
+    if (token) {
+      await tokenBlacklist.blacklistToken(token, userId, "logout");
+    }
+
+    res.json({ message: "Logged out successfully" });
+  } catch (err) {
+    console.error("Logout error:", err);
+    // Even if blacklisting fails, return success
+    // Client will delete tokens anyway
+    res.json({ message: "Logged out successfully" });
+  }
 });
 
 // POST /auth/forgot-password
@@ -211,6 +225,7 @@ authRouter.post("/reset-password", async (req, res) => {
 authRouter.post("/change-password", requireAuth, async (req, res) => {
   try {
     const userId = (req as any).userId;
+    const token = (req as any).token;
     const data = changePasswordSchema.parse(req.body);
 
     // Get current user
@@ -232,7 +247,14 @@ authRouter.post("/change-password", requireAuth, async (req, res) => {
       .set({ passwordHash })
       .where(eq(users.id, userId));
 
-    res.json({ message: "Password changed successfully" });
+    // Blacklist current token (user will need to login again)
+    if (token) {
+      await tokenBlacklist.blacklistToken(token, userId, "password_change");
+    }
+
+    res.json({ 
+      message: "Password changed successfully. Please login again with your new password." 
+    });
   } catch (err) {
     res.status(400).json({ error: "Failed to change password" });
   }

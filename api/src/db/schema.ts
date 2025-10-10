@@ -96,3 +96,16 @@ export const emailVerificationTokens = sqliteTable("email_verification_tokens", 
   used: integer("used", { mode: "boolean" }).default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
 });
+
+// Blacklisted Tokens (for logout/token revocation)
+export const blacklistedTokens = sqliteTable("blacklisted_tokens", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  token: text("token").notNull().unique(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reason: text("reason"), // "logout", "password_change", "admin_revoke", etc.
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`)
+}, (t) => ({
+  tokenIdx: index("blacklisted_tokens_token_idx").on(t.token),
+  userIdx: index("blacklisted_tokens_user_idx").on(t.userId)
+}));

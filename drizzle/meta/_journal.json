@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1760110596811,
+      "tag": "0000_classy_rawhide_kid",
+      "breakpoints": true
+    }
+  ]
+}
