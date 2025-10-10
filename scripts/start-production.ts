@@ -24,7 +24,7 @@ console.log(`✅ All required variables are set\n`);
 
 // Run migrations
 console.log('🗄️  Running database migrations...');
-const migrate = spawn('npm', ['run', 'drizzle:push'], {
+const migrate = spawn('tsx', ['./scripts/force-migrate.ts'], {
   stdio: 'inherit',
   shell: true
 });
