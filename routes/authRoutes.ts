@@ -5,12 +5,8 @@ import { requireAuth } from "../api/src/middlewares/auth.js";
 import { db } from "../api/src/config/db.js";
 import { users, passwordResets, emailVerificationTokens } from "../api/src/db/schema.js";
 import { eq } from "drizzle-orm";
-import * as bcrypt from "bcryptjs";
-import * as crypto from "crypto";
-import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import * as schema from "../api/src/db/schema.js";
-
-const sqliteDb = db as unknown as BetterSQLite3Database<typeof schema>;
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 export const authRouter = Router();
 
@@ -63,7 +59,7 @@ authRouter.post("/register", async (req, res) => {
         const verificationToken = crypto.randomBytes(32).toString("hex");
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
         
-        await sqliteDb.insert(emailVerificationTokens).values({
+        await db.insert(emailVerificationTokens).values({
           userId: result.userId, // Note: auth service would need to return userId
           token: verificationToken,
           expiresAt,
@@ -112,7 +108,7 @@ authRouter.post("/refresh", async (req, res) => {
 authRouter.get("/me", requireAuth, async (req, res) => {
   try {
     const userId = (req as any).userId;
-    const [user] = await sqliteDb.select({
+    const [user] = await db.select({
       id: users.id,
       email: users.email,
       emailVerified: users.emailVerified,
@@ -141,7 +137,7 @@ authRouter.post("/forgot-password", async (req, res) => {
     const data = forgotPasswordSchema.parse(req.body);
 
     // Find user
-    const [user] = await sqliteDb.select().from(users).where(eq(users.email, data.email));
+    const [user] = await db.select().from(users).where(eq(users.email, data.email));
 
     // Always return success (don't reveal if email exists - security)
     if (!user) {
@@ -152,7 +148,7 @@ authRouter.post("/forgot-password", async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    await sqliteDb.insert(passwordResets).values({
+    await db.insert(passwordResets).values({
       userId: user.id,
       token,
       expiresAt,
@@ -174,7 +170,7 @@ authRouter.post("/reset-password", async (req, res) => {
     const data = resetPasswordSchema.parse(req.body);
 
     // Find valid reset token
-    const [reset] = await sqliteDb
+    const [reset] = await db
       .select()
       .from(passwordResets)
       .where(eq(passwordResets.token, data.token));
@@ -185,13 +181,13 @@ authRouter.post("/reset-password", async (req, res) => {
 
     // Update password
     const passwordHash = await bcrypt.hash(data.newPassword, 12);
-    await sqliteDb
+    await db
       .update(users)
       .set({ passwordHash })
       .where(eq(users.id, reset.userId));
 
     // Mark token as used
-    await sqliteDb
+    await db
       .update(passwordResets)
       .set({ used: true })
       .where(eq(passwordResets.id, reset.id));
@@ -209,7 +205,7 @@ authRouter.post("/change-password", requireAuth, async (req, res) => {
     const data = changePasswordSchema.parse(req.body);
 
     // Get current user
-    const [user] = await sqliteDb.select().from(users).where(eq(users.id, userId));
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -222,7 +218,7 @@ authRouter.post("/change-password", requireAuth, async (req, res) => {
 
     // Update to new password
     const passwordHash = await bcrypt.hash(data.newPassword, 12);
-    await sqliteDb
+    await db
       .update(users)
       .set({ passwordHash })
       .where(eq(users.id, userId));
@@ -239,7 +235,7 @@ authRouter.post("/verify-email", async (req, res) => {
     const data = verifyEmailSchema.parse(req.body);
 
     // Find valid verification token
-    const [verification] = await sqliteDb
+    const [verification] = await db
       .select()
       .from(emailVerificationTokens)
       .where(eq(emailVerificationTokens.token, data.token));
@@ -249,13 +245,13 @@ authRouter.post("/verify-email", async (req, res) => {
     }
 
     // Mark email as verified
-    await sqliteDb
+    await db
       .update(users)
       .set({ emailVerified: true })
       .where(eq(users.id, verification.userId));
 
     // Mark token as used
-    await sqliteDb
+    await db
       .update(emailVerificationTokens)
       .set({ used: true })
       .where(eq(emailVerificationTokens.id, verification.id));
@@ -272,7 +268,7 @@ authRouter.post("/resend-verification", async (req, res) => {
     const data = resendVerificationSchema.parse(req.body);
 
     // Find user
-    const [user] = await sqliteDb.select().from(users).where(eq(users.email, data.email));
+    const [user] = await db.select().from(users).where(eq(users.email, data.email));
 
     // Always return success (don't reveal if email exists - security)
     if (!user) {
@@ -288,7 +284,7 @@ authRouter.post("/resend-verification", async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    await sqliteDb.insert(emailVerificationTokens).values({
+    await db.insert(emailVerificationTokens).values({
       userId: user.id,
       token,
       expiresAt,

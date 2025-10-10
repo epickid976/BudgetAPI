@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "start": "tsx ./bin/www",
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch ./bin/www",
     "drizzle:push": "drizzle-kit push",
     "drizzle:studio": "drizzle-kit studio",
     "test": "vitest"
@@ -28,6 +28,7 @@
     "pg": "^8.16.3",
     "pino-http": "^11.0.0",
     "pug": "2.0.0-beta11",
+    "tsx": "^4.20.6",
     "zod": "^4.1.12"
   },
   "devDependencies": {
@@ -39,7 +40,6 @@
     "@types/pg": "^8.15.5",
     "@types/supertest": "^6.0.3",
     "supertest": "^7.1.4",
-    "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

@@ -4,10 +4,7 @@ import { db } from "../api/src/config/db.js";
 import { accounts } from "../api/src/db/schema.js";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../api/src/middlewares/auth.js";
-import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import * as schema from "../api/src/db/schema.js";
-
-const sqliteDb = db as unknown as BetterSQLite3Database<typeof schema>;
+import * as accountService from "../api/src/modules/accounts/service.js";
 
 export const accountsRouter = Router();
 
@@ -27,30 +24,65 @@ const updateAccountSchema = z.object({
   currency: z.string().length(3).optional(),
 });
 
-// GET /accounts
+// GET /accounts?includeBalance=true
 accountsRouter.get("/", async (req, res) => {
   try {
     const userId = (req as any).userId;
-    const rows = await sqliteDb.select().from(accounts).where(eq(accounts.userId, userId));
-    res.json(rows);
+    const includeBalance = req.query.includeBalance === 'true';
+    
+    if (includeBalance) {
+      // Return accounts with calculated balances
+      const rows = await accountService.getAccountsWithBalances(userId);
+      res.json(rows);
+    } else {
+      // Return accounts without balances (faster query)
+      const rows = await db.select().from(accounts).where(eq(accounts.userId, userId));
+      res.json(rows);
+    }
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch accounts" });
   }
 });
 
-// GET /accounts/:id
+// GET /accounts/balances - Get balances for all accounts
+accountsRouter.get("/balances", async (req, res) => {
+  try {
+    const userId = (req as any).userId;
+    const balances = await accountService.getAllAccountBalances(userId);
+    
+    // Convert Map to object for JSON response
+    const balancesObj = Object.fromEntries(balances);
+    res.json(balancesObj);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch balances" });
+  }
+});
+
+// GET /accounts/:id?includeBalance=true
 accountsRouter.get("/:id", async (req, res) => {
   try {
     const userId = (req as any).userId;
-    const [account] = await sqliteDb
-      .select()
-      .from(accounts)
-      .where(and(eq(accounts.id, req.params.id), eq(accounts.userId, userId)));
+    const includeBalance = req.query.includeBalance === 'true';
     
-    if (!account) {
-      return res.status(404).json({ error: "Account not found" });
+    if (includeBalance) {
+      // Return account with balance
+      const account = await accountService.getAccountWithBalance(userId, req.params.id);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+      res.json(account);
+    } else {
+      // Return account without balance
+      const [account] = await db
+        .select()
+        .from(accounts)
+        .where(and(eq(accounts.id, req.params.id), eq(accounts.userId, userId)));
+      
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+      res.json(account);
     }
-    res.json(account);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch account" });
   }
@@ -61,7 +93,7 @@ accountsRouter.post("/", async (req, res) => {
   try {
     const userId = (req as any).userId;
     const data = createAccountSchema.parse(req.body);
-    const [row] = await sqliteDb.insert(accounts).values({ ...data, userId }).returning();
+    const [row] = await db.insert(accounts).values({ ...data, userId }).returning();
     res.status(201).json(row);
   } catch (err: any) {
     res.status(400).json({ error: err.message || "Failed to create account" });
@@ -75,7 +107,7 @@ accountsRouter.put("/:id", async (req, res) => {
     const data = updateAccountSchema.parse(req.body);
     
     // Check ownership
-    const [existing] = await sqliteDb
+    const [existing] = await db
       .select()
       .from(accounts)
       .where(and(eq(accounts.id, req.params.id), eq(accounts.userId, userId)));
@@ -84,7 +116,7 @@ accountsRouter.put("/:id", async (req, res) => {
       return res.status(404).json({ error: "Account not found" });
     }
     
-    const [updated] = await sqliteDb
+    const [updated] = await db
       .update(accounts)
       .set(data)
       .where(eq(accounts.id, req.params.id))
@@ -102,7 +134,7 @@ accountsRouter.delete("/:id", async (req, res) => {
     const userId = (req as any).userId;
     
     // Check ownership
-    const [existing] = await sqliteDb
+    const [existing] = await db
       .select()
       .from(accounts)
       .where(and(eq(accounts.id, req.params.id), eq(accounts.userId, userId)));
@@ -111,7 +143,7 @@ accountsRouter.delete("/:id", async (req, res) => {
       return res.status(404).json({ error: "Account not found" });
     }
     
-    await sqliteDb.delete(accounts).where(eq(accounts.id, req.params.id));
+    await db.delete(accounts).where(eq(accounts.id, req.params.id));
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete account" });

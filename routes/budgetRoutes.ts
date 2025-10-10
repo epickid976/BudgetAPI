@@ -5,10 +5,6 @@ import { budgetMonths, budgetItems } from "../api/src/db/schema.js";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../api/src/middlewares/auth.js";
 import * as budgetService from "../api/src/modules/budgets/service.js";
-import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import * as schema from "../api/src/db/schema.js";
-
-const sqliteDb = db as unknown as BetterSQLite3Database<typeof schema>;
 
 export const budgetsRouter = Router();
 
@@ -52,7 +48,7 @@ budgetsRouter.post("/:year/:month/items", async (req, res) => {
     }
 
     // Find or create budget month
-    let [budgetMonth] = await sqliteDb
+    let [budgetMonth] = await db
       .select()
       .from(budgetMonths)
       .where(and(
@@ -62,14 +58,14 @@ budgetsRouter.post("/:year/:month/items", async (req, res) => {
       ));
 
     if (!budgetMonth) {
-      [budgetMonth] = await sqliteDb
+      [budgetMonth] = await db
         .insert(budgetMonths)
         .values({ userId, year, month })
         .returning();
     }
 
     // Check if budget item already exists
-    const [existing] = await sqliteDb
+    const [existing] = await db
       .select()
       .from(budgetItems)
       .where(and(
@@ -82,7 +78,7 @@ budgetsRouter.post("/:year/:month/items", async (req, res) => {
     }
 
     // Create budget item
-    const [item] = await sqliteDb
+    const [item] = await db
       .insert(budgetItems)
       .values({
         budgetMonthId: budgetMonth.id,
@@ -111,7 +107,7 @@ budgetsRouter.put("/:year/:month/items/:categoryId", async (req, res) => {
     }
 
     // Find budget month
-    const [budgetMonth] = await sqliteDb
+    const [budgetMonth] = await db
       .select()
       .from(budgetMonths)
       .where(and(
@@ -125,7 +121,7 @@ budgetsRouter.put("/:year/:month/items/:categoryId", async (req, res) => {
     }
 
     // Find and update budget item
-    const [existing] = await sqliteDb
+    const [existing] = await db
       .select()
       .from(budgetItems)
       .where(and(
@@ -137,7 +133,7 @@ budgetsRouter.put("/:year/:month/items/:categoryId", async (req, res) => {
       return res.status(404).json({ error: "Budget item not found" });
     }
 
-    const [updated] = await sqliteDb
+    const [updated] = await db
       .update(budgetItems)
       .set({ plannedCents })
       .where(eq(budgetItems.id, existing.id))
@@ -162,7 +158,7 @@ budgetsRouter.delete("/:year/:month/items/:categoryId", async (req, res) => {
     }
 
     // Find budget month
-    const [budgetMonth] = await sqliteDb
+    const [budgetMonth] = await db
       .select()
       .from(budgetMonths)
       .where(and(
@@ -176,7 +172,7 @@ budgetsRouter.delete("/:year/:month/items/:categoryId", async (req, res) => {
     }
 
     // Find budget item
-    const [existing] = await sqliteDb
+    const [existing] = await db
       .select()
       .from(budgetItems)
       .where(and(
@@ -188,7 +184,7 @@ budgetsRouter.delete("/:year/:month/items/:categoryId", async (req, res) => {
       return res.status(404).json({ error: "Budget item not found" });
     }
 
-    await sqliteDb.delete(budgetItems).where(eq(budgetItems.id, existing.id));
+    await db.delete(budgetItems).where(eq(budgetItems.id, existing.id));
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete budget item" });

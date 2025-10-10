@@ -2,11 +2,6 @@ import { db } from "../../config/db.js";
 import { transactions } from "../../db/schema.js";
 import { and, eq, gte, lte } from "drizzle-orm";
 
-import * as schema from "../../db/schema.js";
-import {BetterSQLite3Database} from "drizzle-orm/better-sqlite3";
-
-const sqliteDb = db as unknown as BetterSQLite3Database<typeof schema>;
-
 // handy helper if you may get seconds OR milliseconds
 const toDate = (n: number) => (n > 1e12 ? new Date(n) : new Date(n * 1000));
 
@@ -24,5 +19,5 @@ export async function listTx(
   );
 
   const limit = Math.min(params.limit ?? 50, 200);
-  return sqliteDb.select().from(transactions).where(where).limit(limit);
+  return db.select().from(transactions).where(where).limit(limit);
 }

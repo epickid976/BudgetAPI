@@ -5,10 +5,6 @@ import { transactions } from "../api/src/db/schema.js";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../api/src/middlewares/auth.js";
 import * as transactionService from "../api/src/modules/transactions/service.js";
-import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import * as schema from "../api/src/db/schema.js";
-
-const sqliteDb = db as unknown as BetterSQLite3Database<typeof schema>;
 
 export const transactionsRouter = Router();
 
@@ -56,7 +52,7 @@ transactionsRouter.get("/", async (req, res) => {
 transactionsRouter.get("/:id", async (req, res) => {
   try {
     const userId = (req as any).userId;
-    const [transaction] = await sqliteDb
+    const [transaction] = await db
       .select()
       .from(transactions)
       .where(and(eq(transactions.id, req.params.id), eq(transactions.userId, userId)));
@@ -81,7 +77,7 @@ transactionsRouter.post("/", async (req, res) => {
       ? (data.occurredAt > 1e12 ? new Date(data.occurredAt) : new Date(data.occurredAt * 1000))
       : new Date(data.occurredAt);
 
-    const [row] = await sqliteDb.insert(transactions).values({
+    const [row] = await db.insert(transactions).values({
       userId,
       accountId: data.accountId,
       categoryId: data.categoryId,
@@ -103,7 +99,7 @@ transactionsRouter.put("/:id", async (req, res) => {
     const data = updateTransactionSchema.parse(req.body);
 
     // Check ownership
-    const [existing] = await sqliteDb
+    const [existing] = await db
       .select()
       .from(transactions)
       .where(and(eq(transactions.id, req.params.id), eq(transactions.userId, userId)));
@@ -120,7 +116,7 @@ transactionsRouter.put("/:id", async (req, res) => {
         : new Date(data.occurredAt);
     }
 
-    const [updated] = await sqliteDb
+    const [updated] = await db
       .update(transactions)
       .set(updateData)
       .where(eq(transactions.id, req.params.id))
@@ -138,7 +134,7 @@ transactionsRouter.delete("/:id", async (req, res) => {
     const userId = (req as any).userId;
 
     // Check ownership
-    const [existing] = await sqliteDb
+    const [existing] = await db
       .select()
       .from(transactions)
       .where(and(eq(transactions.id, req.params.id), eq(transactions.userId, userId)));
@@ -147,7 +143,7 @@ transactionsRouter.delete("/:id", async (req, res) => {
       return res.status(404).json({ error: "Transaction not found" });
     }
 
-    await sqliteDb.delete(transactions).where(eq(transactions.id, req.params.id));
+    await db.delete(transactions).where(eq(transactions.id, req.params.id));
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete transaction" });

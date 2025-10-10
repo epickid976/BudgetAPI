@@ -2,13 +2,8 @@ import { db } from "../../config/db.js";
 import { budgetItems, budgetMonths, transactions } from "../../db/schema.js";
 import {and, eq, gte, lte, sql} from "drizzle-orm";
 
-import * as schema from "../../db/schema.js";
-import {BetterSQLite3Database} from "drizzle-orm/better-sqlite3";
-
-const sqliteDb = db as unknown as BetterSQLite3Database<typeof schema>;
-
 export async function getMonth(userId: string, year: number, month: number) {
-  const [bm] = await sqliteDb
+  const [bm] = await db
     .select()
     .from(budgetMonths)
     .where(and(
@@ -23,7 +18,7 @@ export async function getMonth(userId: string, year: number, month: number) {
   const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
   const end   = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
-  const tx = await sqliteDb
+  const tx = await db
     .select({
       categoryId: transactions.categoryId,
       actualCents: sql<number>`
@@ -38,7 +33,7 @@ export async function getMonth(userId: string, year: number, month: number) {
     ))
     .groupBy(transactions.categoryId);
 
-  const planned = await sqliteDb
+  const planned = await db
     .select()
     .from(budgetItems)
     .where(eq(budgetItems.budgetMonthId, bm.id));
