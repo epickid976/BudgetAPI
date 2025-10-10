@@ -11,6 +11,11 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16),
   PORT: z.coerce.number().default(3001),
   NODE_ENV: z.string().default("development"),
+  
+  // Email configuration (optional - emails won't be sent if not configured)
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().email().default("onboarding@resend.dev"),
+  APP_URL: z.string().url().default("http://localhost:3001"),
 });
 
 export const env = envSchema.parse(process.env);

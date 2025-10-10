@@ -7,6 +7,7 @@ import { users, passwordResets, emailVerificationTokens } from "../api/src/db/sc
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import * as emailService from "../api/src/services/email.js";
 
 export const authRouter = Router();
 
@@ -51,24 +52,33 @@ const resendVerificationSchema = z.object({
 authRouter.post("/register", async (req, res) => {
     try {
         const data = registerSchema.parse(req.body);
+        
+        // First, get the user ID - we need to modify register to return it
+        const [existingUser] = await db.select().from(users).where(eq(users.email, data.email));
+        if (existingUser) {
+            return res.status(409).json({ error: "Email already in use" });
+        }
+        
+        // Register the user
         const result = await authService.register(data.email, data.password);
         
-        // TODO: Generate and send email verification token
-        // Uncomment the code below when email service is ready
-        /*
-        const verificationToken = crypto.randomBytes(32).toString("hex");
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        // Get the newly created user ID
+        const [newUser] = await db.select().from(users).where(eq(users.email, data.email));
         
-        await db.insert(emailVerificationTokens).values({
-          userId: result.userId, // Note: auth service would need to return userId
-          token: verificationToken,
-          expiresAt,
-        });
-        
-        // TODO: Send email with verification link
-        // Example: https://yourapp.com/verify-email?token=${verificationToken}
-        console.log(`Verification token for ${data.email}: ${verificationToken}`);
-        */
+        if (newUser) {
+            // Generate verification token
+            const verificationToken = crypto.randomBytes(32).toString("hex");
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+            
+            await db.insert(emailVerificationTokens).values({
+                userId: newUser.id,
+                token: verificationToken,
+                expiresAt,
+            });
+            
+            // Send verification email (will log to console if email not configured)
+            await emailService.sendVerificationEmail(data.email, verificationToken);
+        }
         
         res.status(201).json(result);
     } catch (err: any) {
@@ -154,9 +164,8 @@ authRouter.post("/forgot-password", async (req, res) => {
       expiresAt,
     });
 
-    // TODO: Send email with reset link containing token
-    // Example: https://yourapp.com/reset-password?token=${token}
-    console.log(`Reset token for ${data.email}: ${token}`);
+    // Send password reset email (will log to console if email not configured)
+    await emailService.sendPasswordResetEmail(data.email, token);
 
     res.json({ message: "If that email exists, a reset link has been sent" });
   } catch (err) {
@@ -244,6 +253,9 @@ authRouter.post("/verify-email", async (req, res) => {
       return res.status(400).json({ error: "Invalid or expired verification token" });
     }
 
+    // Get user email for welcome email
+    const [user] = await db.select().from(users).where(eq(users.id, verification.userId));
+
     // Mark email as verified
     await db
       .update(users)
@@ -255,6 +267,11 @@ authRouter.post("/verify-email", async (req, res) => {
       .update(emailVerificationTokens)
       .set({ used: true })
       .where(eq(emailVerificationTokens.id, verification.id));
+
+    // Send welcome email (optional, won't throw if it fails)
+    if (user) {
+      await emailService.sendWelcomeEmail(user.email);
+    }
 
     res.json({ message: "Email verified successfully" });
   } catch (err) {
@@ -290,9 +307,8 @@ authRouter.post("/resend-verification", async (req, res) => {
       expiresAt,
     });
 
-    // TODO: Send email with verification link containing token
-    // Example: https://yourapp.com/verify-email?token=${token}
-    console.log(`Verification token for ${data.email}: ${token}`);
+    // Send verification email (will log to console if email not configured)
+    await emailService.sendVerificationEmail(data.email, token);
 
     res.json({ message: "If that email exists and is unverified, a verification link has been sent" });
   } catch (err) {
