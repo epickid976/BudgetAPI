@@ -34,6 +34,7 @@ const allowedOrigins = [
   
   // Production - Add your deployed frontend URLs
   process.env.FRONTEND_URL,     // From environment variable
+  'https://budget-vue.ejvapps.online',  // Your Vercel deployment
   // 'https://your-app.vercel.app',
   // 'https://your-app.netlify.app',
   // 'https://yourdomain.com',
@@ -46,15 +47,21 @@ app.use(cors({
     
     // Check if origin is in allowed list
     if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      // In development, allow all localhost origins
-      if (process.env.NODE_ENV === 'development' && origin.startsWith('http://localhost:')) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
+      return callback(null, true);
     }
+    
+    // In development, allow all localhost origins
+    if (process.env.NODE_ENV === 'development' && origin.startsWith('http://localhost:')) {
+      return callback(null, true);
+    }
+    
+    // Log rejected origins for debugging
+    console.log(`CORS rejected origin: ${origin}`);
+    console.log(`Allowed origins:`, allowedOrigins);
+    console.log(`NODE_ENV:`, process.env.NODE_ENV);
+    
+    // Don't throw error - just deny
+    callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
