@@ -19,5 +19,5 @@ export async function listTx(
   );
 
   const limit = Math.min(params.limit ?? 50, 200);
-  return db.select().from(transactions).where(where).limit(limit);
+  return (db as any).select().from(transactions).where(where).limit(limit);
 }
