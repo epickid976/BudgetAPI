@@ -1,6 +1,6 @@
 // Database-agnostic imports
 import { sqliteTable, text as sqliteText, integer as sqliteInteger, real as sqliteReal, index as sqliteIndex } from "drizzle-orm/sqlite-core";
-import { pgTable, text as pgText, integer as pgInteger, real as pgReal, index as pgIndex, timestamp as pgTimestamp } from "drizzle-orm/pg-core";
+import { pgTable, text as pgText, integer as pgInteger, real as pgReal, index as pgIndex, timestamp as pgTimestamp, boolean as pgBoolean } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
 // Determine which table builder to use
@@ -19,12 +19,18 @@ const timestamp = (name: string) =>
     ? sqliteInteger(name, { mode: "timestamp" })
     : pgTimestamp(name, { mode: "date" });
 
+// Helper for booleans - SQLite uses integer, PostgreSQL uses boolean
+const boolean = (name: string) =>
+  isSQLite
+    ? sqliteInteger(name, { mode: "boolean" })
+    : pgBoolean(name);
+
 // Users
 export const users = table("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  emailVerified: integer("email_verified", { mode: "boolean" }).default(false),
+  emailVerified: boolean("email_verified").default(false),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -99,7 +105,7 @@ export const passwordResets = table("password_resets", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
-  used: integer("used", { mode: "boolean" }).default(false),
+  used: boolean("used").default(false),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
@@ -109,7 +115,7 @@ export const emailVerificationTokens = table("email_verification_tokens", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
-  used: integer("used", { mode: "boolean" }).default(false),
+  used: boolean("used").default(false),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });
 
