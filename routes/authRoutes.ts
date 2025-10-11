@@ -151,6 +151,15 @@ authRouter.post("/refresh", async (req, res) => {
   }
 });
 
+// GET /auth/test-token - Test if token is valid (for debugging)
+authRouter.get("/test-token", requireAuth, async (req, res) => {
+  res.json({ 
+    success: true, 
+    userId: (req as any).userId,
+    message: "Token is valid!" 
+  });
+});
+
 // GET /auth/me
 authRouter.get("/me", requireAuth, async (req, res) => {
   try {

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Budget API - Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        input, button { margin: 5px; padding: 8px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        button:hover { background: #0056b3; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Budget API - Authentication Test</h1>
+    
+    <div class="section">
+        <h2>1. Login</h2>
+        <input type="email" id="email" placeholder="Email" value="test@example.com">
+        <input type="password" id="password" placeholder="Password" value="password123">
+        <button onclick="login()">Login</button>
+        <div id="loginResult"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Test Token</h2>
+        <button onclick="testToken()">Test Current Token</button>
+        <div id="tokenResult"></div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Get Accounts</h2>
+        <button onclick="getAccounts()">Get Accounts</button>
+        <div id="accountsResult"></div>
+    </div>
+    
+    <div class="section">
+        <h2>4. Current Token Info</h2>
+        <div id="tokenInfo"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001/api';
+        let accessToken = localStorage.getItem('accessToken');
+        
+        function updateTokenInfo() {
+            const info = document.getElementById('tokenInfo');
+            if (accessToken) {
+                // Decode JWT (just the payload part)
+                try {
+                    const parts = accessToken.split('.');
+                    const payload = JSON.parse(atob(parts[1]));
+                    const now = Math.floor(Date.now() / 1000);
+                    const expiresIn = payload.exp - now;
+                    
+                    info.innerHTML = `
+                        <pre>Token: ${accessToken.substring(0, 30)}...
+User ID: ${payload.sub}
+Expires: ${new Date(payload.exp * 1000).toLocaleString()}
+Time left: ${Math.floor(expiresIn / 60)} minutes ${expiresIn % 60} seconds
+${expiresIn < 0 ? '<span class="error">⚠️ TOKEN EXPIRED!</span>' : '<span class="success">✓ Token valid</span>'}</pre>
+                    `;
+                } catch (e) {
+                    info.innerHTML = `<pre class="error">Error decoding token: ${e.message}</pre>`;
+                }
+            } else {
+                info.innerHTML = '<pre>No token stored</pre>';
+            }
+        }
+        
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const result = document.getElementById('loginResult');
+            
+            try {
+                result.innerHTML = 'Logging in...';
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    accessToken = data.accessToken;
+                    localStorage.setItem('accessToken', data.accessToken);
+                    localStorage.setItem('refreshToken', data.refreshToken);
+                    result.innerHTML = `<pre class="success">✓ Login successful!\n${JSON.stringify(data, null, 2)}</pre>`;
+                    updateTokenInfo();
+                } else {
+                    result.innerHTML = `<pre class="error">✗ Login failed:\n${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<pre class="error">✗ Error: ${error.message}</pre>`;
+            }
+        }
+        
+        async function testToken() {
+            const result = document.getElementById('tokenResult');
+            
+            if (!accessToken) {
+                result.innerHTML = '<pre class="error">No token available. Please login first.</pre>';
+                return;
+            }
+            
+            try {
+                result.innerHTML = 'Testing token...';
+                const response = await fetch(`${API_URL}/auth/test-token`, {
+                    headers: { 
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.innerHTML = `<pre class="success">✓ Token is valid!\n${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    result.innerHTML = `<pre class="error">✗ Token invalid:\n${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<pre class="error">✗ Error: ${error.message}</pre>`;
+            }
+        }
+        
+        async function getAccounts() {
+            const result = document.getElementById('accountsResult');
+            
+            if (!accessToken) {
+                result.innerHTML = '<pre class="error">No token available. Please login first.</pre>';
+                return;
+            }
+            
+            try {
+                result.innerHTML = 'Fetching accounts...';
+                const response = await fetch(`${API_URL}/accounts`, {
+                    headers: { 
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.innerHTML = `<pre class="success">✓ Accounts fetched successfully!\n${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    result.innerHTML = `<pre class="error">✗ Failed to fetch accounts:\n${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<pre class="error">✗ Error: ${error.message}\n\nMake sure CORS is enabled and the API is running on ${API_URL}</pre>`;
+            }
+        }
+        
+        // Update token info on load
+        updateTokenInfo();
+        setInterval(updateTokenInfo, 1000);
+    </script>
+</body>
+</html>
+
