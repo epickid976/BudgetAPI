@@ -8,6 +8,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     
     // Log for debugging
     console.log('[Auth] Request to:', req.method, req.path);
+    console.log('[Auth] All headers:', JSON.stringify(req.headers, null, 2));
     console.log('[Auth] Authorization header:', hdr ? 'Present' : 'Missing');
     
     if (!hdr?.startsWith("Bearer ")) {

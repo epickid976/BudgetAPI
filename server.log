@@ -1,0 +1,5 @@
+
+> budgetapi@0.0.0 dev
+> tsx watch ./bin/www
+
+[dotenv@17.2.3] injecting env (4) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
