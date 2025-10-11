@@ -49,6 +49,10 @@ const resendVerificationSchema = z.object({
     email: z.string().email(),
 });
 
+const deleteAccountSchema = z.object({
+    password: z.string().min(1),
+});
+
 // POST /auth/register
 authRouter.post("/register", async (req, res) => {
     try {
@@ -367,5 +371,42 @@ authRouter.post("/resend-verification", async (req, res) => {
     res.json({ message: "If that email exists and is unverified, a verification link has been sent" });
   } catch (err) {
     res.status(400).json({ error: "Failed to process request" });
+  }
+});
+
+// DELETE /auth/account - Delete user account
+authRouter.delete("/account", requireAuth, async (req, res) => {
+  try {
+    const data = deleteAccountSchema.parse(req.body);
+    const userId = (req as any).userId;
+    const token = (req as any).token;
+
+    // Get the user
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Verify password for security
+    const passwordValid = await bcrypt.compare(data.password, user.passwordHash);
+    if (!passwordValid) {
+      return res.status(401).json({ error: "Invalid password" });
+    }
+
+    // Blacklist the current access token
+    if (token) {
+      await tokenBlacklist.blacklistToken(token, userId, "account_deletion");
+    }
+
+    // Delete the user (cascade will delete all related data: accounts, transactions, budgets, etc.)
+    await db.delete(users).where(eq(users.id, userId));
+
+    res.json({ message: "Account deleted successfully" });
+  } catch (err: any) {
+    console.error("Delete account error:", err);
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ error: "Password is required" });
+    }
+    res.status(500).json({ error: "Failed to delete account" });
   }
 });
