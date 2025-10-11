@@ -37,12 +37,13 @@ export async function refreshTokens(refreshToken: string) {
 }
 
 function issueTokens(userId: string) {
-  const now = Math.floor(Date.now() / 1000); // Current timestamp in seconds
+  const now = Math.floor(Date.now() / 1000);
   
   const access = jwt.sign(
     { 
       sub: userId,
-      iat: now
+      iat: now,
+      jti: crypto.randomUUID()  
     }, 
     env.JWT_ACCESS_SECRET, 
     { expiresIn: "15m" }
@@ -52,7 +53,8 @@ function issueTokens(userId: string) {
     { 
       sub: userId, 
       typ: "refresh",
-      iat: now  // ✅ Add issued-at timestamp
+      iat: now,
+      jti: crypto.randomUUID() 
     }, 
     env.JWT_REFRESH_SECRET, 
     { expiresIn: "30d" }
