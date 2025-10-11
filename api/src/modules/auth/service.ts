@@ -37,7 +37,26 @@ export async function refreshTokens(refreshToken: string) {
 }
 
 function issueTokens(userId: string) {
-  const access = jwt.sign({ sub: userId }, env.JWT_ACCESS_SECRET, { expiresIn: "15m" });
-  const refresh = jwt.sign({ sub: userId, typ: "refresh" }, env.JWT_REFRESH_SECRET, { expiresIn: "30d" });
+  const now = Math.floor(Date.now() / 1000); // Current timestamp in seconds
+  
+  const access = jwt.sign(
+    { 
+      sub: userId,
+      iat: now
+    }, 
+    env.JWT_ACCESS_SECRET, 
+    { expiresIn: "15m" }
+  );
+  
+  const refresh = jwt.sign(
+    { 
+      sub: userId, 
+      typ: "refresh",
+      iat: now  // ✅ Add issued-at timestamp
+    }, 
+    env.JWT_REFRESH_SECRET, 
+    { expiresIn: "30d" }
+  );
+  
   return { access, refresh };
 }
