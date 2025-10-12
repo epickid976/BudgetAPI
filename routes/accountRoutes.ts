@@ -14,13 +14,13 @@ accountsRouter.use(requireAuth);
 // Validation schemas
 const createAccountSchema = z.object({
   name: z.string().min(1),
-  type: z.enum(["cash", "checking", "credit"]),
+  type: z.enum(["cash", "checking", "savings", "credit"]),
   currency: z.string().length(3),
 });
 
 const updateAccountSchema = z.object({
   name: z.string().min(1).optional(),
-  type: z.enum(["cash", "checking", "credit"]).optional(),
+  type: z.enum(["cash", "checking", "savings", "credit"]).optional(),
   currency: z.string().length(3).optional(),
 });
 
