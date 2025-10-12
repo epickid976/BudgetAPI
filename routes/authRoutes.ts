@@ -3,7 +3,7 @@ import { z } from "zod";
 import * as authService from "../api/src/modules/auth/service.js";
 import { requireAuth } from "../api/src/middlewares/auth.js";
 import { db } from "../api/src/config/db.js";
-import { users, passwordResets, emailVerificationTokens } from "../api/src/db/schema.js";
+import { users, passwordResets, emailVerificationTokens, categories } from "../api/src/db/schema.js";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -76,6 +76,20 @@ authRouter.post("/register", async (req, res) => {
         }).from(users).where(eq(users.email, data.email));
         
         if (newUser) {
+            // Create default "Other" categories for the new user
+            await db.insert(categories).values([
+                {
+                    userId: newUser.id,
+                    name: "Other",
+                    kind: "expense",
+                },
+                {
+                    userId: newUser.id,
+                    name: "Other",
+                    kind: "income",
+                }
+            ]);
+            
             // Generate verification token
             const verificationToken = crypto.randomBytes(32).toString("hex");
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
