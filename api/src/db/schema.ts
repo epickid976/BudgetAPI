@@ -1,6 +1,6 @@
 // Database-agnostic imports
-import { sqliteTable, text as sqliteText, integer as sqliteInteger, real as sqliteReal, index as sqliteIndex } from "drizzle-orm/sqlite-core";
-import { pgTable, text as pgText, integer as pgInteger, real as pgReal, index as pgIndex, timestamp as pgTimestamp, boolean as pgBoolean } from "drizzle-orm/pg-core";
+import { sqliteTable, text as sqliteText, integer as sqliteInteger, real as sqliteReal, index as sqliteIndex, unique as sqliteUnique } from "drizzle-orm/sqlite-core";
+import { pgTable, text as pgText, integer as pgInteger, real as pgReal, index as pgIndex, timestamp as pgTimestamp, boolean as pgBoolean, unique as pgUnique } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
 // Determine which table builder to use
@@ -12,6 +12,7 @@ const text = isSQLite ? sqliteText : pgText;
 const integer = isSQLite ? sqliteInteger : pgInteger;
 const real = isSQLite ? sqliteReal : pgReal;
 const index = isSQLite ? sqliteIndex : pgIndex;
+const unique = isSQLite ? sqliteUnique : pgUnique;
 
 // Helper for timestamps - SQLite uses integer, PostgreSQL uses timestamp
 const timestamp = (name: string) => 
@@ -50,11 +51,17 @@ export const accounts = table("accounts", {
 export const categories = table("categories", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  kind: text("kind").notNull(),      // "income" | "expense"
-  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+  name: text("name", { length: 100 }).notNull(),
+  kind: text("kind", { length: 10 }).notNull(),      // "income" | "expense"
+  icon: text("icon", { length: 10 }),                // Emoji icon (optional)
+  color: text("color", { length: 7 }),               // Hex color like '#EF4444' (optional)
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 }, (t) => ({
-  userIdx: index("categories_user_idx").on(t.userId)
+  userIdx: index("categories_user_idx").on(t.userId),
+  kindIdx: index("categories_kind_idx").on(t.userId, t.kind),
+  // Unique constraint: prevent duplicate category names per user and kind
+  uniqueUserNameKind: unique().on(t.userId, t.name, t.kind)
 }));
 
 // Transactions

@@ -12,13 +12,17 @@ categoriesRouter.use(requireAuth);
 
 // Validation schemas
 const createCategorySchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(100),
   kind: z.enum(["income", "expense"]),
+  icon: z.string().max(10).optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(), // Hex color format
 });
 
 const updateCategorySchema = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().min(1).max(100).optional(),
   kind: z.enum(["income", "expense"]).optional(),
+  icon: z.string().max(10).optional().nullable(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional().nullable(), // Hex color format
 });
 
 // GET /categories
