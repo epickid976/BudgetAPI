@@ -18,6 +18,10 @@ let db: DB;
 
 if (env.DRIZZLE_DIALECT === "sqlite") {
   const sqlite = new Database(env.DATABASE_URL); // e.g., "sqlite.db"
+  
+  // Enable foreign key constraints in SQLite (required for CASCADE deletes)
+  sqlite.pragma('foreign_keys = ON');
+  
   db = drizzleSqlite(sqlite, { schema });
 } else {
   // Using a Pool means no explicit await client.connect()
