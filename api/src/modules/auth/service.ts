@@ -5,11 +5,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
 
-export async function register(email: string, password: string) {
+export async function register(email: string, password: string, name?: string) {
     const existing = await db.select().from(users).where(eq(users.email, email));
     if (existing.length) throw new Error("EMAIL_IN_USE");
     const passwordHash = await bcrypt.hash(password, 12);
-    const [u] = await db.insert(users).values({ email, passwordHash }).returning();
+    const [u] = await db.insert(users).values({ email, passwordHash, name }).returning();
     return issueTokens(u.id);
 }
 

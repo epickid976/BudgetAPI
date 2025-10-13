@@ -31,6 +31,7 @@ export const users = table("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  name: text("name", { length: 100 }), // User's full name (optional)
   emailVerified: boolean("email_verified").default(false),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 });

@@ -16,6 +16,7 @@ export const authRouter = Router();
 const registerSchema = z.object({
     email: z.string().email(),
     password: z.string().min(8),
+    name: z.string().min(1).max(100).optional(), // Optional full name
 });
 
 const loginSchema = z.object({
@@ -53,6 +54,10 @@ const deleteAccountSchema = z.object({
     password: z.string().min(1),
 });
 
+const updateProfileSchema = z.object({
+    name: z.string().min(1).max(100).optional(),
+});
+
 // POST /auth/register
 authRouter.post("/register", async (req, res) => {
     try {
@@ -65,12 +70,13 @@ authRouter.post("/register", async (req, res) => {
         }
         
         // Register the user
-        const result = await authService.register(data.email, data.password);
+        const result = await authService.register(data.email, data.password, data.name);
         
         // Get the newly created user
         const [newUser] = await db.select({
             id: users.id,
             email: users.email,
+            name: users.name,
             emailVerified: users.emailVerified,
             createdAt: users.createdAt,
         }).from(users).where(eq(users.email, data.email));
@@ -128,6 +134,7 @@ authRouter.post("/login", async (req, res) => {
     const [user] = await db.select({
       id: users.id,
       email: users.email,
+      name: users.name,
       emailVerified: users.emailVerified,
       createdAt: users.createdAt,
     }).from(users).where(eq(users.email, data.email));
@@ -181,6 +188,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
     const [user] = await db.select({
       id: users.id,
       email: users.email,
+      name: users.name,
       emailVerified: users.emailVerified,
       createdAt: users.createdAt,
     }).from(users).where(eq(users.id, userId));
@@ -191,6 +199,35 @@ authRouter.get("/me", requireAuth, async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: "Failed to get user" });
+  }
+});
+
+// PUT /auth/profile - Update user profile
+authRouter.put("/profile", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).userId;
+    const data = updateProfileSchema.parse(req.body);
+    
+    // Update user profile
+    await db.update(users)
+      .set({ name: data.name })
+      .where(eq(users.id, userId));
+    
+    // Return updated user
+    const [user] = await db.select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      emailVerified: users.emailVerified,
+      createdAt: users.createdAt,
+    }).from(users).where(eq(users.id, userId));
+    
+    res.json(user);
+  } catch (err: any) {
+    if (err.name === "ZodError") {
+      return res.status(400).json({ error: "Invalid data", details: err.errors });
+    }
+    res.status(500).json({ error: "Failed to update profile" });
   }
 });
 
