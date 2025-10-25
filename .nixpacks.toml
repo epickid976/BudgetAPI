@@ -1,2 +1,11 @@
+# .nixpacks.toml
+
 [phases.setup]
+# Force Node 22 and install Python + build essentials
 nixPkgs = ["nodejs_22", "python3", "gcc", "make"]
+
+[phases.build]
+cmds = ["npm ci"]
+
+[start]
+cmd = "npm run start"
