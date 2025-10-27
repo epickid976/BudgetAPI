@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db } from "../api/src/config/db.js";
+import { sql } from "drizzle-orm";
 
 export const healthRouter = Router();
 
@@ -7,7 +8,7 @@ export const healthRouter = Router();
 healthRouter.get("/", async (req, res) => {
   try {
     // Test database connection
-    await db.execute({ sql: "SELECT 1" });
+    await db.execute(sql`SELECT 1`);
     
     res.json({
       status: "ok",
@@ -17,6 +18,7 @@ healthRouter.get("/", async (req, res) => {
       database: "connected"
     });
   } catch (error) {
+    console.error("Health check database error:", error);
     res.status(503).json({
       status: "error",
       timestamp: new Date().toISOString(),
@@ -32,9 +34,10 @@ healthRouter.get("/", async (req, res) => {
 healthRouter.get("/ready", async (req, res) => {
   try {
     // Test database connection
-    await db.execute({ sql: "SELECT 1" });
+    await db.execute(sql`SELECT 1`);
     res.status(200).json({ ready: true });
   } catch (error) {
+    console.error("Readiness check database error:", error);
     res.status(503).json({ ready: false, error: "Database not ready" });
   }
 });
