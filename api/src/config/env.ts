@@ -7,6 +7,7 @@ config();
 const envSchema = z.object({
   DRIZZLE_DIALECT: z.enum(["sqlite","postgresql"]),
   DATABASE_URL: z.string(),
+  DATABASE_SSL: z.string().optional(), // Set to 'true' to enable SSL for PostgreSQL
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
   PORT: z.coerce.number().default(3001),

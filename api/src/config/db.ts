@@ -24,8 +24,16 @@ if (env.DRIZZLE_DIALECT === "sqlite") {
   
   db = drizzleSqlite(sqlite, { schema });
 } else {
+  // Configure SSL for PostgreSQL
+  const useSSL = process.env.DATABASE_SSL === 'true'
+    ? { rejectUnauthorized: false }
+    : false;
+
   // Using a Pool means no explicit await client.connect()
-  const pool = new Pool({ connectionString: env.DATABASE_URL });
+  const pool = new Pool({
+    connectionString: env.DATABASE_URL,
+    ssl: useSSL,
+  });
   db = drizzlePg(pool, { schema });
 }
 
