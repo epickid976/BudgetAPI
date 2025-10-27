@@ -1,4 +1,4 @@
-services:
+services: 
   app:
     image: epickid976/budgetapi:latest
     container_name: budgetapi
