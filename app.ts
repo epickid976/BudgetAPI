@@ -7,6 +7,7 @@ import logger from 'morgan';
 import cors from 'cors';
 
 // Import routes
+import { healthRouter } from './routes/healthRoutes.ts';
 import { authRouter } from './routes/authRoutes.ts';
 import { accountsRouter } from './routes/accountRoutes.ts';
 import { categoriesRouter } from './routes/categoryRoutes.ts';
@@ -79,6 +80,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Health check routes (no /api prefix for monitoring tools)
+app.use('/health', healthRouter);
 
 // API routes
 app.use('/api/auth', authRouter);
