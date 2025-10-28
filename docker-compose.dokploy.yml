@@ -1,24 +1,14 @@
+version: '3.8'
+
 services:
   app:
     image: epickid976/budgetapi:latest
-    container_name: budgetapi
     restart: always
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - DATABASE_URL=postgresql://budgetuser:0430906@db:5432/budgetapi
-      - DATABASE_SSL=false
-      - DRIZZLE_DIALECT=postgresql
-      # Add your secrets via Dokploy environment variables:
-      # - JWT_ACCESS_SECRET
-      # - JWT_REFRESH_SECRET
-      # - RESEND_API_KEY (optional)
-      # - EMAIL_FROM (optional)
-      # - APP_URL (optional)
     expose:
       - "3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health/live"]
       interval: 30s
@@ -28,7 +18,6 @@ services:
   
   db:
     image: postgres:16-alpine
-    container_name: budgetapi-db
     restart: always
     environment:
       POSTGRES_DB: budgetapi
@@ -36,6 +25,12 @@ services:
       POSTGRES_PASSWORD: "0430906"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U budgetuser -d budgetapi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+
