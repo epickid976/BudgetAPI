@@ -1,26 +1,51 @@
-import Brevo from "@getbrevo/brevo";
 import { Resend } from "resend";
 import { env } from "../config/env.js";
 
-// Initialize email service (Brevo preferred, fallback to Resend)
-let brevoApi: any = null;
+// Initialize email service (Brevo preferred via REST API, fallback to Resend)
 let resend: Resend | null = null;
 
-// Initialize Brevo if API key is provided
-if (env.BREVO_API_KEY) {
-  try {
-    brevoApi = new Brevo.TransactionalEmailsApi();
-    brevoApi.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, env.BREVO_API_KEY);
-  } catch (error) {
-    console.error("Failed to initialize Brevo:", error);
-    brevoApi = null;
-  }
-} else if (env.RESEND_API_KEY) {
+// Initialize Resend if API key is provided (and no Brevo)
+if (!env.BREVO_API_KEY && env.RESEND_API_KEY) {
   resend = new Resend(env.RESEND_API_KEY);
 }
 
 // Check if email is configured
-const isEmailEnabled = () => !!(brevoApi || resend);
+const isEmailEnabled = () => !!(env.BREVO_API_KEY || resend);
+
+/**
+ * Send email using Brevo REST API
+ */
+async function sendBrevoEmail(to: string, subject: string, htmlContent: string) {
+  if (!env.BREVO_API_KEY) {
+    throw new Error("Brevo API key not configured");
+  }
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': env.BREVO_API_KEY,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { 
+        name: env.EMAIL_FROM_NAME, 
+        email: env.EMAIL_FROM 
+      },
+      to: [{ email: to }],
+      subject: subject,
+      htmlContent: htmlContent
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Brevo API error: ${JSON.stringify(error)}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
 
 /**
  * Send email verification email
@@ -65,15 +90,9 @@ export async function sendVerificationEmail(email: string, token: string) {
   try {
     console.log(`📧 Attempting to send verification email to: ${email} from: ${env.EMAIL_FROM}`);
     
-    if (brevoApi) {
-      // Use Brevo
-      const sendSmtpEmail = new Brevo.SendSmtpEmail();
-      sendSmtpEmail.subject = subject;
-      sendSmtpEmail.htmlContent = htmlContent;
-      sendSmtpEmail.sender = { name: env.EMAIL_FROM_NAME, email: env.EMAIL_FROM };
-      sendSmtpEmail.to = [{ email: email }];
-      
-      const data = await brevoApi.sendTransacEmail(sendSmtpEmail);
+    if (env.BREVO_API_KEY) {
+      // Use Brevo REST API
+      const data = await sendBrevoEmail(email, subject, htmlContent);
       console.log("✅ Verification email sent successfully via Brevo! Message ID:", data.messageId);
       return { id: data.messageId };
     } else if (resend) {
@@ -142,15 +161,9 @@ export async function sendPasswordResetEmail(email: string, token: string) {
   try {
     console.log(`📧 Attempting to send password reset email to: ${email}`);
     
-    if (brevoApi) {
-      // Use Brevo
-      const sendSmtpEmail = new Brevo.SendSmtpEmail();
-      sendSmtpEmail.subject = subject;
-      sendSmtpEmail.htmlContent = htmlContent;
-      sendSmtpEmail.sender = { name: env.EMAIL_FROM_NAME, email: env.EMAIL_FROM };
-      sendSmtpEmail.to = [{ email: email }];
-      
-      const data = await brevoApi.sendTransacEmail(sendSmtpEmail);
+    if (env.BREVO_API_KEY) {
+      // Use Brevo REST API
+      const data = await sendBrevoEmail(email, subject, htmlContent);
       console.log("✅ Password reset email sent successfully via Brevo! Message ID:", data.messageId);
       return { id: data.messageId };
     } else if (resend) {
@@ -213,15 +226,9 @@ export async function sendWelcomeEmail(email: string) {
   `;
   
   try {
-    if (brevoApi) {
-      // Use Brevo
-      const sendSmtpEmail = new Brevo.SendSmtpEmail();
-      sendSmtpEmail.subject = subject;
-      sendSmtpEmail.htmlContent = htmlContent;
-      sendSmtpEmail.sender = { name: env.EMAIL_FROM_NAME, email: env.EMAIL_FROM };
-      sendSmtpEmail.to = [{ email: email }];
-      
-      const data = await brevoApi.sendTransacEmail(sendSmtpEmail);
+    if (env.BREVO_API_KEY) {
+      // Use Brevo REST API
+      const data = await sendBrevoEmail(email, subject, htmlContent);
       console.log("✅ Welcome email sent successfully via Brevo! Message ID:", data.messageId);
       return { id: data.messageId };
     } else if (resend) {
