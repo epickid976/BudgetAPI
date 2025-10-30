@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Email - Budget API</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        input, button { margin: 5px; padding: 8px; width: 300px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; width: auto; }
+        button:hover { background: #0056b3; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Test Email Sending - Budget API</h1>
+    
+    <div class="section">
+        <h2>Register New User (Test Email Verification)</h2>
+        <input type="email" id="email" placeholder="Email" value="">
+        <input type="password" id="password" placeholder="Password (min 8 chars)" value="TestPass123!">
+        <input type="text" id="name" placeholder="Name (optional)" value="Test User">
+        <button onclick="register()">Register & Test Email</button>
+        <div id="registerResult"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Forgot Password (Test Password Reset Email)</h2>
+        <input type="email" id="forgotEmail" placeholder="Email" value="">
+        <button onclick="forgotPassword()">Request Password Reset</button>
+        <div id="forgotResult"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://budgetapi.ejvapps.online/api';
+        
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const name = document.getElementById('name').value;
+            const result = document.getElementById('registerResult');
+            
+            if (!email) {
+                result.innerHTML = '<pre class="error">Please enter an email</pre>';
+                return;
+            }
+            
+            try {
+                result.innerHTML = 'Registering...';
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, name })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.innerHTML = `<pre class="success">✓ Registration successful!\n\nCheck your email (${email}) for verification link.\n\nResponse:\n${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    result.innerHTML = `<pre class="error">✗ Registration failed:\n${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<pre class="error">✗ Error: ${error.message}</pre>`;
+            }
+        }
+        
+        async function forgotPassword() {
+            const email = document.getElementById('forgotEmail').value;
+            const result = document.getElementById('forgotResult');
+            
+            if (!email) {
+                result.innerHTML = '<pre class="error">Please enter an email</pre>';
+                return;
+            }
+            
+            try {
+                result.innerHTML = 'Requesting password reset...';
+                const response = await fetch(`${API_URL}/auth/forgot-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.innerHTML = `<pre class="success">✓ Request sent!\n\nCheck your email (${email}) for password reset link.\n\nResponse:\n${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    result.innerHTML = `<pre class="error">✗ Request failed:\n${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<pre class="error">✗ Error: ${error.message}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html>
+
