@@ -1,22 +1,26 @@
-import * as brevo from "@getbrevo/brevo";
+import Brevo from "@getbrevo/brevo";
 import { Resend } from "resend";
 import { env } from "../config/env.js";
 
 // Initialize email service (Brevo preferred, fallback to Resend)
-let apiInstance: brevo.TransactionalEmailsApi | null = null;
+let brevoApi: any = null;
 let resend: Resend | null = null;
 
+// Initialize Brevo if API key is provided
 if (env.BREVO_API_KEY) {
-  const defaultClient = brevo.ApiClient.instance;
-  const apiKey = defaultClient.authentications["api-key"];
-  apiKey.apiKey = env.BREVO_API_KEY;
-  apiInstance = new brevo.TransactionalEmailsApi();
+  try {
+    brevoApi = new Brevo.TransactionalEmailsApi();
+    brevoApi.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, env.BREVO_API_KEY);
+  } catch (error) {
+    console.error("Failed to initialize Brevo:", error);
+    brevoApi = null;
+  }
 } else if (env.RESEND_API_KEY) {
   resend = new Resend(env.RESEND_API_KEY);
 }
 
 // Check if email is configured
-const isEmailEnabled = () => !!(env.BREVO_API_KEY || env.RESEND_API_KEY);
+const isEmailEnabled = () => !!(brevoApi || resend);
 
 /**
  * Send email verification email
@@ -61,15 +65,15 @@ export async function sendVerificationEmail(email: string, token: string) {
   try {
     console.log(`📧 Attempting to send verification email to: ${email} from: ${env.EMAIL_FROM}`);
     
-    if (apiInstance) {
+    if (brevoApi) {
       // Use Brevo
-      const sendSmtpEmail = new brevo.SendSmtpEmail();
+      const sendSmtpEmail = new Brevo.SendSmtpEmail();
       sendSmtpEmail.subject = subject;
       sendSmtpEmail.htmlContent = htmlContent;
       sendSmtpEmail.sender = { name: env.EMAIL_FROM_NAME, email: env.EMAIL_FROM };
       sendSmtpEmail.to = [{ email: email }];
       
-      const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+      const data = await brevoApi.sendTransacEmail(sendSmtpEmail);
       console.log("✅ Verification email sent successfully via Brevo! Message ID:", data.messageId);
       return { id: data.messageId };
     } else if (resend) {
@@ -138,15 +142,15 @@ export async function sendPasswordResetEmail(email: string, token: string) {
   try {
     console.log(`📧 Attempting to send password reset email to: ${email}`);
     
-    if (apiInstance) {
+    if (brevoApi) {
       // Use Brevo
-      const sendSmtpEmail = new brevo.SendSmtpEmail();
+      const sendSmtpEmail = new Brevo.SendSmtpEmail();
       sendSmtpEmail.subject = subject;
       sendSmtpEmail.htmlContent = htmlContent;
       sendSmtpEmail.sender = { name: env.EMAIL_FROM_NAME, email: env.EMAIL_FROM };
       sendSmtpEmail.to = [{ email: email }];
       
-      const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+      const data = await brevoApi.sendTransacEmail(sendSmtpEmail);
       console.log("✅ Password reset email sent successfully via Brevo! Message ID:", data.messageId);
       return { id: data.messageId };
     } else if (resend) {
@@ -209,15 +213,15 @@ export async function sendWelcomeEmail(email: string) {
   `;
   
   try {
-    if (apiInstance) {
+    if (brevoApi) {
       // Use Brevo
-      const sendSmtpEmail = new brevo.SendSmtpEmail();
+      const sendSmtpEmail = new Brevo.SendSmtpEmail();
       sendSmtpEmail.subject = subject;
       sendSmtpEmail.htmlContent = htmlContent;
       sendSmtpEmail.sender = { name: env.EMAIL_FROM_NAME, email: env.EMAIL_FROM };
       sendSmtpEmail.to = [{ email: email }];
       
-      const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+      const data = await brevoApi.sendTransacEmail(sendSmtpEmail);
       console.log("✅ Welcome email sent successfully via Brevo! Message ID:", data.messageId);
       return { id: data.messageId };
     } else if (resend) {
