@@ -21,6 +21,8 @@ export async function sendVerificationEmail(email: string, token: string) {
   }
   
   try {
+    console.log(`📧 Attempting to send verification email to: ${email} from: ${env.EMAIL_FROM}`);
+    
     const { data, error } = await resend.emails.send({
       from: env.EMAIL_FROM,
       to: email,
@@ -53,14 +55,14 @@ export async function sendVerificationEmail(email: string, token: string) {
     });
 
     if (error) {
-      console.error("Error sending verification email:", error);
-      throw new Error("Failed to send verification email");
+      console.error("❌ Resend API error:", JSON.stringify(error, null, 2));
+      throw new Error(`Failed to send verification email: ${error.message || JSON.stringify(error)}`);
     }
 
-    console.log("Verification email sent successfully:", data);
+    console.log("✅ Verification email sent successfully! Email ID:", data?.id);
     return data;
-  } catch (error) {
-    console.error("Error sending verification email:", error);
+  } catch (error: any) {
+    console.error("❌ Error sending verification email:", error.message || error);
     throw error;
   }
 }
