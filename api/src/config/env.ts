@@ -17,7 +17,7 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().email().default("onboarding@resend.dev"),
   APP_URL: z.string().url().default("http://localhost:5173"), // Frontend URL for email links
-  REQUIRE_EMAIL_VERIFICATION: z.string().optional().default("false"), // Set to "true" to require email verification
+  REQUIRE_EMAIL_VERIFICATION: z.string().default("false"), // Set to "true" to require email verification
 });
 
 export const env = envSchema.parse(process.env);

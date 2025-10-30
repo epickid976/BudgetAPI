@@ -96,22 +96,28 @@ authRouter.post("/register", async (req, res) => {
                 }
             ]);
             
-            // Generate verification token
-            const verificationToken = crypto.randomBytes(32).toString("hex");
-            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-            
-            await db.insert(emailVerificationTokens).values({
-                userId: newUser.id,
-                token: verificationToken,
-                expiresAt,
-            });
-            
-            // Send verification email (will log to console if email not configured)
-            // Don't throw if email fails - registration should still succeed
-            try {
-                await emailService.sendVerificationEmail(data.email, verificationToken);
-            } catch (emailError) {
-                console.error("Failed to send verification email, but registration succeeded:", emailError);
+            // Only handle email verification if required
+            const requireVerification = process.env.REQUIRE_EMAIL_VERIFICATION === "true";
+            if (requireVerification) {
+                // Generate verification token
+                const verificationToken = crypto.randomBytes(32).toString("hex");
+                const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+                
+                await db.insert(emailVerificationTokens).values({
+                    userId: newUser.id,
+                    token: verificationToken,
+                    expiresAt,
+                });
+                
+                // Send verification email (will log to console if email not configured)
+                // Don't throw if email fails - registration should still succeed
+                try {
+                    await emailService.sendVerificationEmail(data.email, verificationToken);
+                } catch (emailError) {
+                    console.error("Failed to send verification email, but registration succeeded:", emailError);
+                }
+            } else {
+                console.log("📧 Email verification disabled - user can login immediately");
             }
         }
         
