@@ -107,7 +107,12 @@ authRouter.post("/register", async (req, res) => {
             });
             
             // Send verification email (will log to console if email not configured)
-            await emailService.sendVerificationEmail(data.email, verificationToken);
+            // Don't throw if email fails - registration should still succeed
+            try {
+                await emailService.sendVerificationEmail(data.email, verificationToken);
+            } catch (emailError) {
+                console.error("Failed to send verification email, but registration succeeded:", emailError);
+            }
         }
         
         // Return in format frontend expects
@@ -275,7 +280,11 @@ authRouter.post("/forgot-password", async (req, res) => {
     });
 
     // Send password reset email (will log to console if email not configured)
-    await emailService.sendPasswordResetEmail(data.email, token);
+    try {
+      await emailService.sendPasswordResetEmail(data.email, token);
+    } catch (emailError) {
+      console.error("Failed to send password reset email:", emailError);
+    }
 
     res.json({ message: "If that email exists, a reset link has been sent" });
   } catch (err) {
@@ -426,7 +435,11 @@ authRouter.post("/resend-verification", async (req, res) => {
     });
 
     // Send verification email (will log to console if email not configured)
-    await emailService.sendVerificationEmail(data.email, token);
+    try {
+      await emailService.sendVerificationEmail(data.email, token);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+    }
 
     res.json({ message: "If that email exists and is unverified, a verification link has been sent" });
   } catch (err) {
