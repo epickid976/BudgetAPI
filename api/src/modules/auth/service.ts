@@ -19,8 +19,11 @@ export async function login(email: string, password: string) {
     const ok = await bcrypt.compare(password, u.passwordHash);
     if (!ok) throw new Error("INVALID_CREDENTIALS");
     
-    // Check if email is verified
-    if (!u.emailVerified) throw new Error("EMAIL_NOT_VERIFIED");
+    // Check if email is verified (only if required)
+    const requireVerification = env.REQUIRE_EMAIL_VERIFICATION === "true";
+    if (requireVerification && !u.emailVerified) {
+        throw new Error("EMAIL_NOT_VERIFIED");
+    }
     
     return issueTokens(u.id);
 }
