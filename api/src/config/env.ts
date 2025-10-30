@@ -14,8 +14,10 @@ const envSchema = z.object({
   NODE_ENV: z.string().default("development"),
   
   // Email configuration (optional - emails won't be sent if not configured)
-  RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().email().default("onboarding@resend.dev"),
+  BREVO_API_KEY: z.string().optional(), // Brevo (formerly Sendinblue) API key
+  RESEND_API_KEY: z.string().optional(), // Fallback to Resend if Brevo not set
+  EMAIL_FROM: z.string().email().default("noreply@ejvapps.online"),
+  EMAIL_FROM_NAME: z.string().default("Budget API"),
   APP_URL: z.string().url().default("http://localhost:5173"), // Frontend URL for email links
   REQUIRE_EMAIL_VERIFICATION: z.string().default("false"), // Set to "true" to require email verification
 });
