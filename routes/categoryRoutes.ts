@@ -121,9 +121,13 @@ categoriesRouter.delete("/:id", async (req, res) => {
       return res.status(404).json({ error: "Category not found" });
     }
 
+    // CASCADE delete will automatically remove:
+    // - All budget_items referencing this category
+    // - All transactions referencing this category
     await db.delete(categories).where(eq(categories.id, req.params.id));
     res.status(204).send();
   } catch (err) {
+    console.error("Failed to delete category:", err);
     res.status(500).json({ error: "Failed to delete category" });
   }
 });

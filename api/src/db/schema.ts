@@ -15,8 +15,8 @@ const index = isSQLite ? sqliteIndex : pgIndex;
 const unique = isSQLite ? sqliteUnique : pgUnique;
 
 // Helper for timestamps - SQLite uses integer, PostgreSQL uses timestamp
-const timestamp = (name: string) => 
-  isSQLite 
+const timestamp = (name: string) =>
+  isSQLite
     ? sqliteInteger(name, { mode: "timestamp" })
     : pgTimestamp(name, { mode: "date" });
 
@@ -38,14 +38,14 @@ export const users = table("users", {
 
 // Accounts
 export const accounts = table("accounts", {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade"}),
-    name: text("name").notNull(),
-    type: text("type").notNull(),      // "cash" | "checking" | "credit"
-    currency: text("currency").notNull(), // "USD"
-    createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type").notNull(),      // "cash" | "checking" | "credit"
+  currency: text("currency").notNull(), // "USD"
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 }, (t) => ({
-    userIdx: index("accounts_user_idx").on(t.userId)
+  userIdx: index("accounts_user_idx").on(t.userId)
 }));
 
 // Categories
@@ -69,15 +69,15 @@ export const categories = table("categories", {
 export const transactions = table("transactions", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  accountId: text("account_id").notNull().references(() => accounts.id, { onDelete: "restrict" }),
-  categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: "set null" }).default(""),
+  accountId: text("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
   amountCents: integer("amount_cents").notNull(),
   note: text("note"),
   occurredAt: timestamp("occurred_at").notNull(),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)
 }, (t) => ({
   byUserDate: index("tx_user_date_idx").on(t.userId, t.occurredAt),
-  byUserCat:  index("tx_user_cat_idx").on(t.userId, t.categoryId)
+  byUserCat: index("tx_user_cat_idx").on(t.userId, t.categoryId)
 }));
 
 // Budgets
@@ -94,7 +94,7 @@ export const budgetMonths = table("budget_months", {
 export const budgetItems = table("budget_items", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   budgetMonthId: text("budget_month_id").notNull().references(() => budgetMonths.id, { onDelete: "cascade" }),
-  categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: "restrict" }),
+  categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
   plannedCents: integer("planned_cents").notNull()
 }, (t) => ({
   uniq: index("budget_item_unique").on(t.budgetMonthId, t.categoryId)

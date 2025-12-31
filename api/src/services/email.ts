@@ -20,6 +20,18 @@ async function sendBrevoEmail(to: string, subject: string, htmlContent: string) 
     throw new Error("Brevo API key not configured");
   }
 
+  const requestBody = {
+    sender: { 
+      name: env.EMAIL_FROM_NAME, 
+      email: env.EMAIL_FROM 
+    },
+    to: [{ email: to }],
+    subject: subject,
+    htmlContent: htmlContent
+  };
+
+  console.log(`🔍 Brevo Request Body:`, JSON.stringify(requestBody, null, 2));
+
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -27,23 +39,31 @@ async function sendBrevoEmail(to: string, subject: string, htmlContent: string) 
       'api-key': env.BREVO_API_KEY,
       'content-type': 'application/json'
     },
-    body: JSON.stringify({
-      sender: { 
-        name: env.EMAIL_FROM_NAME, 
-        email: env.EMAIL_FROM 
-      },
-      to: [{ email: to }],
-      subject: subject,
-      htmlContent: htmlContent
-    })
+    body: JSON.stringify(requestBody)
   });
 
+  console.log(`🔍 Brevo Response Status: ${response.status} ${response.statusText}`);
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Brevo API error: ${JSON.stringify(error)}`);
+    const errorText = await response.text();
+    console.error(`❌ Brevo API Error Response:`, errorText);
+    let error;
+    try {
+      error = JSON.parse(errorText);
+    } catch {
+      error = errorText;
+    }
+    throw new Error(`Brevo API error (${response.status}): ${JSON.stringify(error)}`);
   }
 
   const data = await response.json();
+  console.log(`🔍 Brevo Success Response:`, JSON.stringify(data, null, 2));
+  
+  // Brevo returns either messageId or messageIds depending on the response
+  if (!data.messageId && !data.messageIds) {
+    console.warn(`⚠️ Warning: Brevo response doesn't contain messageId or messageIds`);
+  }
+  
   return data;
 }
 

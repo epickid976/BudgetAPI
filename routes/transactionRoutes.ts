@@ -146,6 +146,7 @@ transactionsRouter.delete("/:id", async (req, res) => {
     await db.delete(transactions).where(eq(transactions.id, req.params.id));
     res.status(204).send();
   } catch (err) {
+    console.error("Failed to delete transaction:", err);
     res.status(500).json({ error: "Failed to delete transaction" });
   }
 });

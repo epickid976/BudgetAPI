@@ -29,7 +29,7 @@ accountsRouter.get("/", async (req, res) => {
   try {
     const userId = (req as any).userId;
     const includeBalance = req.query.includeBalance === 'true';
-    
+
     if (includeBalance) {
       // Return accounts with calculated balances
       const rows = await accountService.getAccountsWithBalances(userId);
@@ -49,7 +49,7 @@ accountsRouter.get("/balances", async (req, res) => {
   try {
     const userId = (req as any).userId;
     const balances = await accountService.getAllAccountBalances(userId);
-    
+
     // Convert Map to object for JSON response
     const balancesObj = Object.fromEntries(balances);
     res.json(balancesObj);
@@ -63,7 +63,7 @@ accountsRouter.get("/:id", async (req, res) => {
   try {
     const userId = (req as any).userId;
     const includeBalance = req.query.includeBalance === 'true';
-    
+
     if (includeBalance) {
       // Return account with balance
       const account = await accountService.getAccountWithBalance(userId, req.params.id);
@@ -77,7 +77,7 @@ accountsRouter.get("/:id", async (req, res) => {
         .select()
         .from(accounts)
         .where(and(eq(accounts.id, req.params.id), eq(accounts.userId, userId)));
-      
+
       if (!account) {
         return res.status(404).json({ error: "Account not found" });
       }
@@ -105,23 +105,23 @@ accountsRouter.put("/:id", async (req, res) => {
   try {
     const userId = (req as any).userId;
     const data = updateAccountSchema.parse(req.body);
-    
+
     // Check ownership
     const [existing] = await db
       .select()
       .from(accounts)
       .where(and(eq(accounts.id, req.params.id), eq(accounts.userId, userId)));
-    
+
     if (!existing) {
       return res.status(404).json({ error: "Account not found" });
     }
-    
+
     const [updated] = await db
       .update(accounts)
       .set(data)
       .where(eq(accounts.id, req.params.id))
       .returning();
-    
+
     res.json(updated);
   } catch (err: any) {
     res.status(400).json({ error: err.message || "Failed to update account" });
@@ -132,20 +132,21 @@ accountsRouter.put("/:id", async (req, res) => {
 accountsRouter.delete("/:id", async (req, res) => {
   try {
     const userId = (req as any).userId;
-    
+
     // Check ownership
     const [existing] = await db
       .select()
       .from(accounts)
       .where(and(eq(accounts.id, req.params.id), eq(accounts.userId, userId)));
-    
+
     if (!existing) {
       return res.status(404).json({ error: "Account not found" });
     }
-    
+
     await db.delete(accounts).where(eq(accounts.id, req.params.id));
     res.status(204).send();
   } catch (err) {
+    console.error("Failed to delete account:", err);
     res.status(500).json({ error: "Failed to delete account" });
   }
 });
