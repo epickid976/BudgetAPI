@@ -17,6 +17,18 @@ const setBudgetItemSchema = z.object({
   plannedCents: z.number().int(),
 });
 
+// GET /budgets - Get all budget months with items for the user
+budgetsRouter.get("/", async (req, res) => {
+  try {
+    const userId = (req as any).userId;
+    const months = await budgetService.getAllMonths(userId);
+    res.json(months);
+  } catch (err) {
+    console.error("Failed to fetch all budgets:", err);
+    res.status(500).json({ error: "Failed to fetch budgets" });
+  }
+});
+
 // GET /budgets/:year/:month
 budgetsRouter.get("/:year/:month", async (req, res) => {
   try {
